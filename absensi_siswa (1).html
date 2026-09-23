@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absensi Siswa</title>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:Arial, sans-serif;
+    background:linear-gradient(135deg,#eef7ff,#f7f0ff);
+    color:#172033; min-height:100vh; padding:24px;
+  }
+  .wrap{max-width:620px;margin:auto}
+  .hero{
+    background:linear-gradient(135deg,#2563eb,#7c3aed);
+    color:white;border-radius:24px;padding:28px 24px;
+    box-shadow:0 12px 30px rgba(37,99,235,.2); margin-bottom:18px
+  }
+  .brand{font-size:13px;font-weight:700;opacity:.85;letter-spacing:.5px}
+  h1{margin:8px 0 6px;font-size:30px}
+  .hero p{margin:0;opacity:.9}
+  .card{
+    background:white;border-radius:22px;padding:22px;
+    box-shadow:0 8px 28px rgba(20,30,60,.09);margin-bottom:18px
+  }
+  label.title{display:block;font-weight:700;margin-bottom:8px}
+  input[type=text]{
+    width:100%;padding:14px 15px;border:1px solid #d8deea;
+    border-radius:12px;font-size:16px;outline:none
+  }
+  input[type=text]:focus{border-color:#6366f1;box-shadow:0 0 0 3px #6366f122}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+  .meta div{background:#f5f7fb;border-radius:12px;padding:12px}
+  .meta small{display:block;color:#687386;margin-bottom:4px}
+  .status{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .opt{
+    border:1px solid #d8deea;border-radius:12px;padding:13px;
+    cursor:pointer;display:flex;align-items:center;gap:9px
+  }
+  .opt:has(input:checked){border-color:#6366f1;background:#f0efff}
+  .opt input{accent-color:#6366f1}
+  button{
+    width:100%;border:0;border-radius:13px;padding:14px;
+    font-size:16px;font-weight:700;cursor:pointer
+  }
+  #send{background:#2563eb;color:white;margin-top:18px}
+  #send:hover{background:#1d4ed8}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .secondary{background:#eef2ff;color:#3730a3}
+  .danger{background:#fff1f2;color:#be123c}
+  .success{
+    display:none;margin-top:14px;background:#ecfdf5;color:#047857;
+    padding:12px;border-radius:12px;font-weight:600
+  }
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f5}
+  th{color:#64748b}
+  .empty{text-align:center;color:#7b8494;padding:18px}
+  footer{text-align:center;color:#7b8494;font-size:12px;padding:4px}
+  @media(max-width:430px){body{padding:14px}.meta,.status,.actions{grid-template-columns:1fr}h1{font-size:26px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="brand">STUDENT ATTENDANCE SYSTEM</div>
+    <h1>📋 Absensi Siswa</h1>
+    <p>Isi data kehadiran dengan benar.</p>
+  </header>
+
+  <section class="card">
+    <h2>📝 Form Absensi</h2>
+    <form id="form">
+      <label class="title" for="name">Nama lengkap siswa</label>
+      <input id="name" type="text" maxlength="60" placeholder="Masukkan nama lengkap..." required>
+
+      <div class="meta">
+        <div><small>Tanggal</small><b id="tanggal">-</b></div>
+        <div><small>Waktu WIB</small><b id="waktu">-</b></div>
+      </div>
+
+      <label class="title">Pilih status kehadiran</label>
+      <div class="status">
+        <label class="opt"><input type="radio" name="status" value="Hadir" required> 🟢 Hadir</label>
+        <label class="opt"><input type="radio" name="status" value="Izin"> 🟡 Izin</label>
+        <label class="opt"><input type="radio" name="status" value="Sakit"> 🔵 Sakit</label>
+        <label class="opt"><input type="radio" name="status" value="Alpa"> 🔴 Alpa</label>
+      </div>
+
+      <button id="send" type="submit">Kirim Absensi 🚀</button>
+      <div class="success" id="success">✅ Absensi berhasil disimpan!</div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>📊 Data Absensi</h2>
+    <div id="tableWrap"></div>
+    <div class="actions">
+      <button class="secondary" id="csv">⬇️ Download CSV</button>
+      <button class="danger" id="clear">🗑️ Hapus Data</button>
+    </div>
+  </section>
+
+  <footer>Absensi Siswa • Data tersimpan di perangkat ini</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let data = JSON.parse(localStorage.getItem("absensiSiswa") || "[]");
+
+function updateClock(){
+  const now = new Date();
+  const f = new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",dateStyle:"full"});
+  const t = new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",timeStyle:"medium"});
+  $("tanggal").textContent = f.format(now);
+  $("waktu").textContent = t.format(now);
+}
+setInterval(updateClock,1000); updateClock();
+
+function render(){
+  if(!data.length){
+    $("tableWrap").innerHTML = '<div class="empty">Belum ada data absensi.</div>';
+    return;
+  }
+  $("tableWrap").innerHTML = `
+    <div style="overflow:auto">
+    <table>
+      <thead><tr><th>Nama</th><th>Status</th><th>Tanggal</th><th>Waktu</th></tr></thead>
+      <tbody>${data.slice().reverse().map(x=>`
+        <tr><td>${escapeHtml(x.name)}</td><td>${x.status}</td><td>${x.date}</td><td>${x.time}</td></tr>
+      `).join("")}</tbody>
+    </table></div>`;
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
+
+$("form").addEventListener("submit",e=>{
+  e.preventDefault();
+  const now = new Date();
+  const date = new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",dateStyle:"short"}).format(now);
+  const time = new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",timeStyle:"medium"}).format(now);
+  const status = document.querySelector('input[name="status"]:checked').value;
+  data.push({name:$("name").value.trim(),status,date,time});
+  localStorage.setItem("absensiSiswa",JSON.stringify(data));
+  $("success").style.display="block";
+  e.target.reset();
+  render();
+  setTimeout(()=>$("success").style.display="none",2500);
+});
+
+$("clear").onclick=()=>{
+  if(confirm("Hapus semua data absensi di perangkat ini?")){
+    data=[]; localStorage.removeItem("absensiSiswa"); render();
+  }
+};
+
+$("csv").onclick=()=>{
+  if(!data.length){alert("Belum ada data.");return;}
+  const rows=[["Nama","Status","Tanggal","Waktu"],...data.map(x=>[x.name,x.status,x.date,x.time])];
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\\n");
+  const blob=new Blob(["\\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="absensi-siswa.csv"; a.click(); URL.revokeObjectURL(a.href);
+};
+render();
+</script>
+</body>
+</html>
